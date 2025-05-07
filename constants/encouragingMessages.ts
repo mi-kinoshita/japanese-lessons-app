@@ -1,0 +1,17 @@
+export const encouragingMessages = [
+    "Ohayo~! Let's study Japanese today!",
+    "Try talking in the chat!",
+    "Learning new words is fun too!",
+    "Even a little progress is wonderful!",
+    "At your pace, keep going!",
+    "If you feel it's difficult, ask anytime!",
+    "You'll surely be able to talk fun in Japanese!",
+    "Did you decide today's goal? Let's start with a small one.",
+    "It's important to rest if you're tired!",
+    "Come on, let's touch Japanese today!",
+    "Konnichiwa! How are you doing today?",
+    "Ganbatte ne! (Do your best!) You can do it!",
+    "It's okay to make mistakes!",
+    "Your effort will pay off!",
+    "Let's enjoy learning Japanese!",
+  ];
