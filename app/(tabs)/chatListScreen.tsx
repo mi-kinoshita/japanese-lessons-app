@@ -1,23 +1,25 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  Image,
-  ActivityIndicator,
-  Alert,
-  Platform,
-} from "react-native";
-import Constants from "expo-constants";
-import { router } from "expo-router";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { Swipeable } from "react-native-gesture-handler";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Constants from "expo-constants";
+import { router } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  GestureHandlerRootView,
+  Swipeable,
+} from "react-native-gesture-handler";
 
 interface ConversationSummary {
   id: string;
@@ -32,6 +34,17 @@ interface ConversationSummary {
 
 const CONVERSATION_SUMMARIES_KEY = "_conversationSummaries_";
 const CONVERSATION_STORAGE_KEY_PREFIX = "chatConversation_";
+
+const DAILY_MESSAGE_COUNT_PREFIX = "dailyMessagesCount_";
+const MAX_DAILY_MESSAGES = 10;
+
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = (today.getMonth() + 1).toString().padStart(2, "0");
+  const day = today.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const ChatListItem: React.FC<{
   conversation: ConversationSummary;
@@ -96,7 +109,11 @@ const ChatListItem: React.FC<{
 
         <View style={styles.chatItemContent}>
           <View style={styles.chatItemHeader}>
-            <Text style={styles.participantName}>
+            <Text
+              style={styles.participantName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {conversation.text || conversation.participantName}
             </Text>
             <Text style={styles.timestamp}>{conversation.timestamp}</Text>
@@ -113,6 +130,7 @@ const ChatListItem: React.FC<{
 export default function ChatListScreen() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dailyMessageCount, setDailyMessageCount] = useState(0);
 
   const loadConversationSummaries = useCallback(async () => {
     setIsLoading(true);
@@ -124,10 +142,8 @@ export default function ChatListScreen() {
         const parsedSummaries: ConversationSummary[] =
           JSON.parse(storedSummaries);
         setConversations(parsedSummaries);
-        console.log("Loaded conversation summaries:", parsedSummaries.length);
       } else {
         setConversations([]);
-        console.log("No conversation summaries found.");
       }
     } catch (error) {
       console.error("Failed to load conversation summaries:", error);
@@ -137,14 +153,27 @@ export default function ChatListScreen() {
     }
   }, []);
 
+  const loadDailyMessageCount = useCallback(async () => {
+    try {
+      const today = getTodayDateString();
+      const storedMessageCount = await AsyncStorage.getItem(
+        `${DAILY_MESSAGE_COUNT_PREFIX}${today}`
+      );
+      if (storedMessageCount !== null) {
+        setDailyMessageCount(parseInt(storedMessageCount, 10));
+      } else {
+        setDailyMessageCount(0);
+      }
+    } catch (error) {
+      console.error("Failed to load daily message count:", error);
+      setDailyMessageCount(0);
+    }
+  }, []);
+
   const handleDelete = useCallback(async (conversationId: string) => {
-    console.log("Attempting to delete conversation:", conversationId);
     try {
       await AsyncStorage.removeItem(
         `${CONVERSATION_STORAGE_KEY_PREFIX}${conversationId}`
-      );
-      console.log(
-        `Messages for conversation ID ${conversationId} removed from AsyncStorage.`
       );
 
       const storedSummaries = await AsyncStorage.getItem(
@@ -160,12 +189,8 @@ export default function ChatListScreen() {
         CONVERSATION_SUMMARIES_KEY,
         JSON.stringify(updatedSummaries)
       );
-      console.log(
-        `Summary for conversation ID ${conversationId} removed from list in AsyncStorage.`
-      );
 
       setConversations(updatedSummaries);
-      console.log("Conversation deleted successfully:", conversationId);
     } catch (error) {
       console.error(
         `Failed to delete conversation ID: ${conversationId}`,
@@ -177,12 +202,10 @@ export default function ChatListScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log("ChatListScreen focused, loading summaries.");
       loadConversationSummaries();
-      return () => {
-        console.log("ChatListScreen blurred.");
-      };
-    }, [loadConversationSummaries])
+      loadDailyMessageCount();
+      return () => {};
+    }, [loadConversationSummaries, loadDailyMessageCount])
   );
 
   if (isLoading) {
@@ -195,40 +218,56 @@ export default function ChatListScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.menuIcon} onPress={() => {}}>
-          <Ionicons name="heart" size={28} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Chat</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => {
-            router.push("/newChatStartScreen");
-            console.log("新しいチャットを作成 ボタンが押されました");
-          }}
-          style={styles.menuIcon}
-        >
-          <AntDesign name="form" size={25} color="#202020" />
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={conversations}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ChatListItem conversation={item} onDelete={handleDelete} />
-        )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyListContainer}>
-            <Text style={styles.emptyListText}>
-              No chats yet. Start a new conversation!
-            </Text>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.menuIcon}
+            onPress={() => {}}
+          ></TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Chat</Text>
           </View>
-        )}
-      />
-    </SafeAreaView>
+          <TouchableOpacity
+            onPress={() => {
+              if (dailyMessageCount >= MAX_DAILY_MESSAGES) {
+                Alert.alert(
+                  "Daily Message Limit Reached",
+                  `You have sent ${MAX_DAILY_MESSAGES} messages today. You cannot start a new chat.`
+                );
+              } else {
+                router.push("/newChatStartScreen");
+              }
+            }}
+            style={styles.menuIcon}
+          >
+            <AntDesign
+              name="form"
+              size={25}
+              color={
+                dailyMessageCount >= MAX_DAILY_MESSAGES ? "#ccc" : "#202020"
+              }
+            />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ChatListItem conversation={item} onDelete={handleDelete} />
+          )}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyListContainer}>
+              <Text style={styles.emptyListText}>
+                No chats yet. Start a new conversation!
+              </Text>
+            </View>
+          )}
+        />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -248,7 +287,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    // paddingTop: 10,
     paddingBottom: 10,
     paddingTop: Platform.OS === "android" ? Constants.statusBarHeight : 0,
   },

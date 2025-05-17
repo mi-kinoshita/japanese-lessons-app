@@ -4,6 +4,7 @@ import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -36,6 +37,7 @@ const defaultUserSettings: UserSettings = {
 };
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [userSettings, setUserSettings] =
     useState<UserSettings>(defaultUserSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,16 +234,6 @@ export default function SettingsScreen() {
             sound: "default" as any,
           };
 
-          // --- テスト用のトリガー (seconds) ---
-          // const trigger = {
-          //   seconds: 5,
-          //   repeats: false,
-          //   type: SchedulableTriggerInputTypes.TIME_INTERVAL, // 列挙体を使用
-          // } as const;
-          // ---------------------------------
-
-          // --- 開発・運用時（毎日特定の時間） ---
-
           const trigger = {
             repeats: true,
             hour: 20,
@@ -382,6 +374,21 @@ export default function SettingsScreen() {
               </Text>
             )}
           </View>
+
+          {/* <TouchableOpacity
+            style={styles.paymentLinkButton}
+            onPress={() => {
+              router.push("/paymentScreen");
+            }}
+          >
+            <Text style={styles.paymentLinkButtonText}>Upgrade to Premium</Text>
+            <Ionicons
+              name="star-outline"
+              size={20}
+              color="#fff"
+              style={styles.paymentLinkIcon}
+            />
+          </TouchableOpacity> */}
 
           <View style={styles.linksSection}>
             <TouchableOpacity
@@ -601,6 +608,25 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     textAlign: "center",
   },
+  paymentLinkButton: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    marginBottom: 30,
+    width: "100%",
+    flexDirection: "row",
+  },
+  paymentLinkButtonText: {
+    color: "#000",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginRight: 10,
+  },
+  paymentLinkIcon: {},
   linksSection: {
     width: "100%",
     marginTop: 5,

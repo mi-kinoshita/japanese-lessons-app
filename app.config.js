@@ -5,7 +5,7 @@ export default ({ config }) => {
   return {
     name: "lunaTalk",
     slug: "lunaTalk",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "lunatalksecound",
@@ -59,6 +59,11 @@ export default ({ config }) => {
       },
       EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
       EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      // EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY:
+      //   process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY,
+      EXPO_PUBLIC_REVENUECAT_IOS_API_KEY:
+        process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
+      EXPO_PUBLIC_ENTITLEMENT_ID: process.env.EXPO_PUBLIC_ENTITLEMENT_ID,
     },
     owner: "miadesign",
   };

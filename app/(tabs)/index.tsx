@@ -1,24 +1,23 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import Constants from "expo-constants";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
   Image,
-  TouchableOpacity,
+  Platform,
   SafeAreaView,
   ScrollView,
-  Linking,
-  Button,
-  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import Constants from "expo-constants";
-import { useRouter, Link } from "expo-router";
-import { FontAwesome, Ionicons, AntDesign } from "@expo/vector-icons";
-import { useProgressData } from "../../hooks/useProgressData";
-import { useFocusEffect } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { scenarios, Scenario } from "../../constants/scenarios";
 import { encouragingMessages } from "../../constants/encouragingMessages";
+import { Scenario, scenarios } from "../../constants/scenarios";
+import { useProgressData } from "../../hooks/useProgressData";
 
 interface IngredientProps {
   name: string;
@@ -118,6 +117,9 @@ const DAILY_SCENARIO_DATE_KEY = "dailyScenarioDate";
 const DAILY_SCENARIO_DATA_KEY = "dailyScenarioData";
 const DAILY_ENCOURAGING_MESSAGE_KEY = "dailyEncouragingMessage";
 
+const DAILY_MESSAGE_COUNT_PREFIX = "dailyMessagesCount_";
+const MAX_DAILY_MESSAGES = 10;
+
 export default function IndexScreen() {
   const router = useRouter();
   const { progress, loadProgress } = useProgressData();
@@ -126,6 +128,7 @@ export default function IndexScreen() {
   const [dailyEncouragingMessage, setDailyEncouragingMessage] = useState<
     string | null
   >(null);
+  const [dailyMessageCount, setDailyMessageCount] = useState(0);
 
   const getTodayDateString = () => {
     const today = new Date();
@@ -150,6 +153,23 @@ export default function IndexScreen() {
     const randomIndex = Math.floor(Math.random() * messages.length);
     return messages[randomIndex];
   };
+
+  const loadDailyMessageCount = useCallback(async () => {
+    try {
+      const today = getTodayDateString();
+      const storedMessageCount = await AsyncStorage.getItem(
+        `${DAILY_MESSAGE_COUNT_PREFIX}${today}`
+      );
+      if (storedMessageCount !== null) {
+        setDailyMessageCount(parseInt(storedMessageCount, 10));
+      } else {
+        setDailyMessageCount(0);
+      }
+    } catch (error) {
+      console.error("Failed to load daily message count:", error);
+      setDailyMessageCount(0);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -231,9 +251,10 @@ export default function IndexScreen() {
 
       loadDailyScenario();
       loadDailyEncouragingMessage();
+      loadDailyMessageCount();
 
       return () => {};
-    }, [loadProgress])
+    }, [loadProgress, loadDailyMessageCount])
   );
 
   const handleLessonStart = () => {
@@ -241,7 +262,12 @@ export default function IndexScreen() {
   };
 
   const handleScenarioTap = () => {
-    if (dailyScenario) {
+    if (dailyMessageCount >= MAX_DAILY_MESSAGES) {
+      Alert.alert(
+        "Daily Message Limit Reached",
+        `You have sent ${MAX_DAILY_MESSAGES} messages today. You cannot start a new chat.`
+      );
+    } else if (dailyScenario) {
       router.push({
         pathname: "/chatScreen",
         params: { initialPrompt: dailyScenario.prompt },
@@ -263,19 +289,6 @@ export default function IndexScreen() {
   const targetStreak = 30;
   const targetWordCount = 100;
 
-  // const resetSurvey = async () => {
-  //   try {
-  //     await AsyncStorage.removeItem("hasCompletedSurvey"); // SURVEY_COMPLETED_KEY
-  //     // 必要であれば他のアンケート回答データもクリア
-  //     // await AsyncStorage.removeItem('surveyAnswers'); // SURVEY_ANSWERS_KEY
-  //     console.log("Survey completion flag cleared.");
-  //     // SurveyScreenに戻るなどの処理
-  //     // router.replace('/survey'); // もしSurveyScreenが独立したルートなら
-  //   } catch (e) {
-  //     console.error("Failed to clear survey completion flag:", e);
-  //   }
-  // };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -285,11 +298,11 @@ export default function IndexScreen() {
           </View>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>LunaTalk</Text>
+            {/* TODO: Add payment button or icon */}
           </View>
           <View style={styles.headerRightPlaceholder}></View>
         </View>
         <View style={styles.contentContainer}>
-          {/* <Button title="Reset Survey" onPress={resetSurvey} /> */}
           <View style={styles.imageContainer}>
             <Image
               source={require("../../assets/images/80sgirl.jpeg")}
@@ -330,15 +343,26 @@ export default function IndexScreen() {
               </Text>
               <TouchableOpacity
                 onPress={handleScenarioTap}
-                style={styles.scenarioItemContainer}
-                disabled={!dailyScenario}
+                style={[
+                  styles.scenarioItemContainer,
+                  dailyMessageCount >= MAX_DAILY_MESSAGES
+                    ? styles.disabledScenarioItemContainer
+                    : null,
+                ]}
+                disabled={
+                  !dailyScenario || dailyMessageCount >= MAX_DAILY_MESSAGES
+                }
               >
                 {dailyScenario?.icon ? (
                   <View style={styles.scenarioItemIconContainer}>
                     <Ionicons
                       name={dailyScenario.icon as any}
                       size={30}
-                      color="#202020"
+                      color={
+                        dailyMessageCount >= MAX_DAILY_MESSAGES
+                          ? "#ccc"
+                          : "#202020"
+                      }
                       style={styles.scenarioIcon}
                     />
                   </View>
@@ -347,7 +371,11 @@ export default function IndexScreen() {
                     <Ionicons
                       name="sync-outline"
                       size={30}
-                      color="#ccc"
+                      color={
+                        dailyMessageCount >= MAX_DAILY_MESSAGES
+                          ? "#ccc"
+                          : "#ccc"
+                      }
                       style={styles.scenarioIcon}
                     />
                   </View>
@@ -355,7 +383,12 @@ export default function IndexScreen() {
 
                 <View style={styles.scenarioItemTextContent}>
                   <Text
-                    style={styles.scenarioItemText}
+                    style={[
+                      styles.scenarioItemText,
+                      dailyMessageCount >= MAX_DAILY_MESSAGES
+                        ? styles.disabledScenarioItemText
+                        : null,
+                    ]}
                     numberOfLines={2}
                     ellipsizeMode="tail"
                   >
@@ -538,6 +571,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     color: "#333",
+    alignSelf: "flex-start",
   },
   scenarioItemContainer: {
     flexDirection: "column",
@@ -565,9 +599,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scenarioIcon: {
-    // アイコン自体への個別スタイルは今回は不要
-  },
+  scenarioIcon: {},
   scenarioItemTextContent: {
     alignItems: "center",
   },
@@ -586,7 +618,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 10,
     color: "#333",
-    alignSelf: "flex-start", // タイトルを左寄せにする
+    alignSelf: "flex-start",
   },
   encouragingMessageContainer: {
     flexDirection: "column",
@@ -618,5 +650,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
     textAlign: "center",
+  },
+  disabledScenarioItemContainer: {
+    opacity: 0.6,
+  },
+  disabledScenarioItemText: {
+    color: "#666",
   },
 });
